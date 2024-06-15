@@ -1,4 +1,4 @@
-$webhook = "http://127.0.0.1:8000/data" 
+$webhook = "YOUR_URL_HERE_SERVER" 
 $debug = $true
 $blockhostsfile = $false
 $criticalprocess = $true
